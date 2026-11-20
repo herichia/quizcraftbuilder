@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QuizCraft Question Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+/* VOICE: calm, practical classroom utility
+   IDEA: an answer sheet: you write on the left, it gets marked on the right
+   PICTURE: the working editor plus a live marked-up question list
+   COLOUR and TYPE: white, ink, ultramarine accent, green and red marks; Figtree
+   LAYOUT: modest title band, two-column workspace that stacks under 860px */
+:root{color-scheme:light dark;--bg:light-dark(#fff,#0e1116);--panel:light-dark(#f4f5fa,#171b24);--ink:light-dark(#14110f,#eceef4);--mut:light-dark(#5b6070,#9aa1b2);--line:light-dark(#dfe2ec,#2a3040);--acc:light-dark(#800000,#e88a8a);--head:#800000;--on:light-dark(#fff,#1a0b0e);--ok:light-dark(#00804a,#3fd18b);--bad:light-dark(#c8231b,#ff6b63)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Figtree,system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(24px,3.5vw,48px) max(5vw,16px)}
+header.band{background:var(--head);color:#fff;padding-bottom:28px}
+h1{font-size:clamp(32px,4.5vw,46px);line-height:1.05;margin:0 0 8px;font-weight:800;text-wrap:balance}
+header p{margin:0;max-width:62ch;opacity:.92}
+.wrap{max-width:1240px;margin:0 auto}
+.work{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:28px}
+@media(max-width:860px){.work{grid-template-columns:minmax(0,1fr)}}
+label{font-weight:600;font-size:14px;display:block;margin-bottom:6px}
+input,select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+textarea{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:15px;line-height:1.6;min-height:440px;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px;align-items:end}
+.row>div{flex:1 1 160px}
+.row>.sm{flex:0 1 120px}
+button{font:inherit;font-weight:600;min-height:44px;padding:0 18px;border-radius:10px;border:1.5px solid var(--acc);background:var(--bg);color:var(--acc);cursor:pointer}
+a.lnk{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border-radius:10px;border:1.5px solid var(--acc);color:var(--acc);font-weight:600;text-decoration:none}
+button.pri{background:var(--acc);color:var(--on)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.side{background:var(--panel);border-radius:16px;padding:20px;align-self:start}
+.side h2{font-size:20px;margin:0 0 4px}
+.status{font-size:15px;color:var(--mut);margin:0 0 14px}
+.status b.ok{color:var(--ok)}.status b.bad{color:var(--bad)}
+ol.qs{list-style:none;margin:0;padding:0;display:grid;gap:10px;max-height:520px;overflow:auto}
+.q{background:var(--bg);border:1.5px solid var(--line);border-left:5px solid var(--ok);border-radius:10px;padding:10px 12px;font-size:15px}
+.q.err{border-left-color:var(--bad)}
+.q .t{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.tag{font-size:13px;font-weight:600;padding:1px 8px;border-radius:99px;background:var(--panel);color:var(--mut);white-space:nowrap}
+.q .msg{color:var(--bad);font-size:14px;margin-top:4px}
+.q ul{margin:6px 0 0;padding-left:18px;color:var(--mut);font-size:14px}
+.q li.c{color:var(--ok);font-weight:600}
+.empty{color:var(--mut);font-size:15px}
+.note{font-size:14px;color:var(--mut);margin-top:10px}
+.guide{border-top:1px solid var(--line)}
+.guide h2{font-size:26px;margin:0 0 6px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-top:18px}
+.card{border:1.5px solid var(--line);border-radius:12px;padding:14px 16px}
+.card h3{margin:0 0 4px;font-size:17px}
+.card p{margin:0 0 8px;font-size:15px;color:var(--mut)}
+pre{background:var(--panel);border-radius:8px;padding:10px 12px;margin:0;font:14px/1.5 "JetBrains Mono",ui-monospace,monospace;overflow-x:auto}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:10px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+@media(prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<header class="band"><div class="wrap">
+<h1>QuizCraft Question Builder</h1>
+<p>Type or paste your questions in plain text, check them, and download a CSV you can import into a Brightspace quiz or Question Library.</p>
+</div></header>
+
+<main class="band"><div class="wrap work">
+<section>
+<div class="row">
+<div><label for="qname">Quiz name</label><input id="qname" placeholder="e.g. Week 5 review" autocomplete="off"></div>
+<div class="sm"><label for="pts">Points each</label><input id="pts" type="number" min="0" step="0.5" value="1"></div>
+</div>
+<div class="row">
+<div><label for="sample">Add a sample question</label>
+<select id="sample"><option value="">Choose a question type…</option><option value="mc">Multiple choice</option><option value="ms">Multiple answer</option><option value="tf">True or false</option><option value="wr">Written response</option><option value="fib">Fill in the blank</option><option value="match">Matching</option><option value="order">Ordering</option></select></div>
+<div class="sm"><button id="addSample" type="button">Insert</button></div>
+</div>
+<label for="src">Your questions (leave one blank line between questions)</label>
+<textarea id="src" spellcheck="true"></textarea>
+<div class="btns">
+<button class="pri" id="gen" type="button">Check questions</button>
+<button id="clear" type="button">Clear</button>
+</div>
+<p class="note">The example questions are there to show the format. Replace them with your own.</p>
+</section>
+
+<aside class="side">
+<h2>Results</h2>
+<p class="status" id="status">Press Check questions to see how each one will import.</p>
+<ol class="qs" id="list"><li class="empty">Nothing checked yet.</li></ol>
+<div class="btns">
+<button class="pri" id="dl" type="button" disabled>Download CSV</button>
+<button id="cp" type="button" disabled>Copy CSV</button>
+</div>
+<div id="alt" hidden>
+<p class="note"><b>Download not working?</b> Try one of these:</p>
+<div class="btns" style="margin-top:6px">
+<a class="lnk" id="open" target="_blank" rel="noopener">Open CSV in a new tab</a>
+<button id="sel" type="button">Select CSV text</button>
+</div>
+<p class="note">Or select the text below, copy it (Ctrl+C or Cmd+C), paste it into Notepad or TextEdit, and save it as <b>quiz.csv</b>.</p>
+<textarea id="raw" readonly aria-label="CSV text" style="min-height:140px;font-size:13px"></textarea>
+</div>
+<p class="note">To import in Brightspace: Quizzes → Question Library (or a quiz's Add/Edit Questions) → Import → Upload a File, then choose the CSV.</p>
+</aside>
+</div></main>
+
+<section class="band guide"><div class="wrap">
+<h2>How to write each question type</h2>
+<p>Number each question, put answers on the lines below it, and mark correct answers with an asterisk (*). Leave a blank line between questions.</p>
+<div class="cards" id="cards"></div>
+</div></section>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+{
+const SAMPLES={
+mc:{h:"Multiple choice",p:"One correct answer, marked with *.",t:"1. Which vital sign is measured in breaths per minute?\na) Pulse\n*b) Respiratory rate\nc) Blood pressure\nd) Temperature"},
+ms:{h:"Multiple answer",p:"Mark every correct answer with *.",t:"2. Which of these are prime numbers?\n*a) 2\n*b) 3\nc) 4\n*d) 5"},
+tf:{h:"True or false",p:"Write True or False on the line below.",t:"3. The heart has four chambers.\nTrue"},
+wr:{h:"Written response",p:"A question with no answer lines. It is marked by hand.",t:"4. Describe one strategy for building rapport with a new client."},
+fib:{h:"Fill in the blank",p:"Start with blank, include ____, and list every accepted answer.",t:"blank 5. Two plus two equals ____.\na) four\nb) 4"},
+match:{h:"Matching",p:"Start with match. Separate each pair with /. Leave the left side empty to add an extra wrong answer.",t:"match 6. Match the number with its spelling.\na) 1 / one\nb) 3 / three\nc) 12 / twelve\nd) / five"},
+order:{h:"Ordering",p:"Start with order. List the items in the correct order.",t:"order 7. Put the planets in order from the sun.\na) Mercury\nb) Venus\nc) Earth\nd) Mars"}
+};
+const $=id=>document.getElementById(id);
+const src=$("src"),list=$("list"),status=$("status"),dl=$("dl"),cp=$("cp");
+let csv="";
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const cell=v=>{v=v==null?"":String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+const row=a=>{while(a.length<5)a.push("");return a.map(cell).join(",")};
+const stripNum=s=>s.replace(/^\s*(question\s*)?\d+\s*[.)]\s*/i,"").trim();
+const optRe=/^\s*(\*?)\s*([a-zA-Z]|\d+)\s*[.)]\s*(.*)$/;
+
+function parse(text){
+  const blocks=text.replace(/\r/g,"").split(/\n\s*\n/).map(b=>b.split("\n").map(l=>l.trimEnd()).filter(l=>l.trim())).filter(b=>b.length);
+  return blocks.map(lines=>{
+    let first=lines[0].trim(),kind="";
+    const kw=first.match(/^(blank|match|order)\b\s*/i);
+    if(kw){kind=kw[1].toLowerCase();first=first.slice(kw[0].length)}
+    const q={text:stripNum(first),rest:lines.slice(1).map(l=>l.trim()),err:"",opts:[]};
+    if(!q.text){q.err="The question text is missing.";q.type="?";return q}
+    const opts=q.rest.map(l=>{const m=l.match(optRe);return m?{c:!!m[1],t:m[3].trim()}:{c:l.startsWith("*"),t:l.replace(/^\*\s*/,"").trim()}});
+    q.opts=opts;
+    if(kind==="blank"){q.type="Fill in the blank";q.code="SA";
+      if(!/_{2,}/.test(q.text))q.err="Add a blank (____) in the question.";
+      else if(!opts.length)q.err="List at least one accepted answer below the question.";
+      opts.forEach(o=>o.c=true);return q}
+    if(kind==="match"){q.type="Matching";q.code="M";
+      q.pairs=opts.map(o=>{const i=o.t.indexOf("/");return i<0?null:{l:o.t.slice(0,i).trim(),r:o.t.slice(i+1).trim()}});
+      if(q.pairs.some(p=>!p||!p.r))q.err="Each line needs a pair like: a) left / right";
+      else if(q.pairs.filter(p=>p.l).length<2)q.err="Matching needs at least two pairs.";
+      return q}
+    if(kind==="order"){q.type="Ordering";q.code="O";
+      if(opts.length<2)q.err="List at least two items in the correct order.";return q}
+    if(!opts.length){q.type="Written response";q.code="WR";return q}
+    if(opts.length===1&&/^(true|false|t|f)$/i.test(opts[0].t)){q.type="True or false";q.code="TF";q.tf=/^t/i.test(opts[0].t);return q}
+    const n=opts.filter(o=>o.c).length;
+    if(opts.length<2)q.err="Add at least two answer choices, or write True/False.";
+    else if(n===0)q.err="Mark the correct answer with an asterisk (*).";
+    if(n>1){q.type="Multiple answer";q.code="MS"}else{q.type="Multiple choice";q.code="MC"}
+    return q});
+}
+
+function toCSV(qs,name,pts){
+  const out=[];const prefix=(name||"Quiz").replace(/[^\w]+/g,"-").replace(/^-|-$/g,"").slice(0,20)||"Quiz";
+  qs.forEach((q,i)=>{
+    out.push(row(["NewQuestion",q.code]),row(["ID",prefix+"-"+(i+1)]),row(["Title",q.text.slice(0,60)]),row(["QuestionText",q.text]),row(["Points",pts]),row(["Difficulty","1"]));
+    if(q.code==="MC")q.opts.forEach(o=>out.push(row(["Option",o.c?100:0,o.t])));
+    if(q.code==="MS"){out.push(row(["Scoring","RightAnswers"]));q.opts.forEach(o=>out.push(row(["Option",o.c?1:0,o.t])))}
+    if(q.code==="TF"){out.push(row(["TRUE",q.tf?100:0]),row(["FALSE",q.tf?0:100]))}
+    if(q.code==="SA"){out.push(row(["InputBox","1","40"]));q.opts.forEach(o=>out.push(row(["Answer",100,o.t])))}
+    if(q.code==="M"){out.push(row(["Scoring","EquallyWeighted"]));let k=0;
+      q.pairs.forEach(p=>{k++;if(p.l)out.push(row(["Choice",k,p.l]))});k=0;
+      q.pairs.forEach(p=>{k++;out.push(row(["Match",k,p.r]))})}
+    if(q.code==="O"){out.push(row(["Scoring","EquallyWeighted"]));q.opts.forEach(o=>out.push(row(["Item",o.t])))}
+    out.push(row([]));
+  });
+  return "﻿"+out.join("\r\n")+"\r\n";
+}
+
+function render(qs){
+  if(!qs.length){list.innerHTML='<li class="empty">No questions found. Type or paste some on the left.</li>';status.textContent="";return}
+  list.innerHTML=qs.map((q,i)=>{
+    let detail="";
+    if(q.code==="M"&&!q.err)detail=q.pairs.map(p=>`<li>${esc(p.l||"(extra)")} → ${esc(p.r)}</li>`).join("");
+    else if(q.code==="TF")detail=`<li class="c">${q.tf?"True":"False"}</li>`;
+    else if(q.code==="O")detail=q.opts.map((o,j)=>`<li>${j+1}. ${esc(o.t)}</li>`).join("");
+    else detail=q.opts.map(o=>`<li class="${o.c?"c":""}">${o.c?"✓ ":""}${esc(o.t)}</li>`).join("");
+    return `<li class="q${q.err?" err":""}"><div class="t"><b>${i+1}.</b><span>${esc(q.text)}</span><span class="tag">${esc(q.type)}</span></div>${q.err?`<div class="msg">${esc(q.err)}</div>`:""}${detail?`<ul>${detail}</ul>`:""}</li>`}).join("");
+  const bad=qs.filter(q=>q.err).length;
+  status.innerHTML=bad?`<b class="bad">${bad} question${bad>1?"s need":" needs"} fixing</b> before you can download.`:`<b class="ok">${qs.length} question${qs.length>1?"s":""} ready.</b> Download the CSV and import it into Brightspace.`;
+}
+
+function check(){
+  const qs=parse(src.value);render(qs);
+  const ok=qs.length&&!qs.some(q=>q.err);
+  csv=ok?toCSV(qs,$("qname").value.trim(),$("pts").value||"1"):"";
+  dl.disabled=cp.disabled=!ok;
+  const plain=csv.replace(/^﻿/,"");
+  $("raw").value=plain;
+  $("open").href=ok?"data:text/csv;charset=utf-8,"+encodeURIComponent(plain):"#";
+  $("open").setAttribute("download",fname());
+  $("alt").hidden=!ok;
+  try{localStorage.setItem("qc-src",src.value);localStorage.setItem("qc-name",$("qname").value)}catch(e){}
+}
+
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2600)}
+const fname=()=>(($("qname").value.trim()||"quiz-questions").replace(/[^\w\- ]+/g,"").replace(/\s+/g,"-"))+".csv";
+
+$("gen").addEventListener("click",check);
+$("clear").addEventListener("click",()=>{src.value="";csv="";dl.disabled=cp.disabled=true;$("alt").hidden=true;list.innerHTML='<li class="empty">Nothing checked yet.</li>';status.textContent="Press Check questions to see how each one will import.";src.focus()});
+src.addEventListener("input",()=>{if(csv){csv="";dl.disabled=cp.disabled=true;$("alt").hidden=true;status.textContent="You changed the questions. Check them again before downloading."}});
+$("addSample").addEventListener("click",()=>{const k=$("sample").value;if(!k)return;src.value=(src.value.trim()?src.value.trimEnd()+"\n\n":"")+SAMPLES[k].t;src.focus()});
+const selRaw=()=>{const r=$("raw");r.focus();r.select();r.setSelectionRange(0,r.value.length)};
+$("sel").addEventListener("click",()=>{selRaw();toast("Selected. Now press Ctrl+C (Cmd+C on Mac).")});
+cp.addEventListener("click",async()=>{
+  const text=csv.replace(/^﻿/,"");
+  try{await navigator.clipboard.writeText(text);toast("CSV copied. Paste it into Notepad and save it as .csv");return}catch(e){}
+  try{selRaw();if(document.execCommand("copy")){toast("CSV copied. Paste it into Notepad and save it as .csv");return}}catch(e){}
+  selRaw();toast("Text selected below. Press Ctrl+C (Cmd+C on Mac) to copy.")});
+
+let downloads=null;
+dl.addEventListener("click",async()=>{
+  if(!csv)return;
+  if(downloads){try{await downloads.save({filename:fname(),data:csv});toast("CSV saved")}catch(e){toast("Download was cancelled or blocked. You can use Copy CSV instead.")}return}
+  try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=fname();document.body.appendChild(a);a.click();a.remove()}catch(e){toast("Download isn't available here. Use Copy CSV instead.")}
+});
+if(window.claude&&window.claude.use){window.claude.use("downloads").then(d=>{downloads=d}).catch(()=>{})}
+
+$("cards").innerHTML=Object.values(SAMPLES).map(s=>`<div class="card"><h3>${s.h}</h3><p>${s.p}</p><pre>${esc(s.t)}</pre></div>`).join("");
+
+let saved=null,savedName=null;try{saved=localStorage.getItem("qc-src");savedName=localStorage.getItem("qc-name")}catch(e){}
+src.value=saved||Object.values(SAMPLES).map(s=>s.t).join("\n\n");
+if(savedName)$("qname").value=savedName;
+check();
+}
+</script>
+</body>
+</html>
